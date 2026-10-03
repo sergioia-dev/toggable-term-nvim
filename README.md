@@ -10,14 +10,102 @@ session, with its scrollback.
 
 ## Install
 
-The plugin lives in this repo as `plugins/toggable-term` and is installed by the
-flake like the other in-tree plugins:
+`plugin/toggable_term.lua` registers the `:Term*` commands as soon as the plugin is on
+the runtimepath, so nothing has to be required for them to exist. Calling `setup()`
+is optional and only changes the defaults (see [Options](#options)). The plugin has
+no dependencies and no build step, and is tested against Neovim 0.12.4; it uses
+stable APIs only (`vim.api.nvim_create_user_command`, floating windows, `WinLeave`).
 
-- `derivations/toggable-term-nvim/default.nix` builds it with `vimUtils.buildVimPlugin`
-  (a plain directory *is* part of the flake source, so no `fetchFromGitHub`).
-- `flake.nix` exposes it as `vimPlugins.toggable-term-nvim` and `neovim.nix` adds it to
-  `startPlugins`, so `plugin/toggable_term.lua` is sourced from the packpath and
-  the `:Term*` commands exist without any `require` in the configuration.
+### lazy.nvim
+
+```lua
+{
+	"sergioia-dev/toggable-term-nvim",
+	-- `opts` is passed to require("toggable_term").setup().
+	opts = {
+		close_on_focus_loss = true,
+		vertical_size = 30,
+		horizontal_size = 30,
+		float_width = 50,
+		float_height = 50,
+		horizontal_init = "opencode",
+	},
+	keys = {
+		{ "<C-w>%", function() require("toggable_term").toggle_right_terminal() end, mode = { "n", "t" }, desc = "Toggle right terminal" },
+		{ '<C-w>"', function() require("toggable_term").toggle_bottom_terminal() end, mode = { "n", "t" }, desc = "Toggle bottom terminal" },
+		{ "<F2>", function() require("toggable_term").toggle_floating_terminal() end, mode = { "n", "t" }, desc = "Toggle floating terminal" },
+	},
+}
+```
+
+The plugin is not lazy-loaded by default, so this spec loads it at startup, which
+is what makes the commands and the keymaps available immediately. LazyVim users
+put the same spec in `lua/plugins/toggable-term.lua` (or any file under `lua/plugins/`).
+If you prefer an explicit call, use `config = function() require("toggable_term").setup({ ... }) end`
+instead of `opts`; both work.
+
+### vim-plug
+
+```vim
+call plug#begin()
+Plug 'sergioia-dev/toggable-term-nvim'
+call plug#end()
+
+lua << EOF
+require("toggable_term").setup({ close_on_focus_loss = true })
+EOF
+```
+
+### packer.nvim
+
+```lua
+use({
+	"sergioia-dev/toggable-term-nvim",
+	config = function()
+		require("toggable_term").setup({ close_on_focus_loss = true })
+	end,
+})
+```
+
+### mini.deps
+
+```lua
+local add = MiniDeps.add
+add({ source = "sergioia-dev/toggable-term-nvim" })
+require("toggable_term").setup({ close_on_focus_loss = true })
+```
+
+### No plugin manager
+
+```sh
+git clone https://github.com/sergioia-dev/toggable-term-nvim \
+	"${XDG_DATA_HOME:-$HOME/.local/share}/nvim/site/pack/plugins/start/toggable-term-nvim"
+```
+
+Neovim sources `plugin/` from every `pack/*/start/*` directory at startup, so the
+`:Term*` commands exist after a restart. This is also the way to test a local
+checkout: clone it anywhere and add that directory to the runtimepath with
+`vim.opt.rtp:prepend("/path/to/toggable-term-nvim")`.
+
+### Nix
+
+```nix
+toggable-term-nvim = pkgs.vimUtils.buildVimPlugin {
+  pname = "toggable-term-nvim";
+  version = "0.1.0";
+  src = pkgs.fetchFromGitHub {
+    owner = "sergioia-dev";
+    repo = "toggable-term-nvim";
+    rev = "6c8f4f3eb070d990bcec37cbf4bd1d31329abc4a";
+    hash = "sha256-l8EuEPk1qam2OROHGBtweRn8BylOANDeQrOWCPIn+ws=";
+  };
+  doCheck = false;
+};
+```
+
+Add the resulting derivation to `programs.neovim.configure.packages` or to the
+`vimPlugins` list of your Neovim overlay; `plugin/toggable_term.lua` is sourced from
+the packpath, so the commands exist with no `require` in your configuration.
 
 ## Options
 
@@ -62,9 +150,9 @@ require("toggable_term").setup({
 	before_open = nil 
 ```
 
-In this configuration the call lives in `configuration/lua/plugins/toggable-term.lua`,
-following the one-file-per-plugin convention of `configuration/lua/plugins/` (each file calls
-`require(...).setup{...}` and `configuration/lua/plugins/init.lua` requires them all).
+Every key is optional and only the keys you pass are changed. Pass the table to
+`opts` in a lazy.nvim spec (as above), to `config` in packer, or call
+`require("toggable_term").setup({ ... })` yourself once the plugin is loaded.
 
 `close_on_focus_loss` can also be flipped at runtime, either through the Lua API
 or with `:TermFocusClose on|off|toggle`.
