@@ -116,6 +116,13 @@ require("toggable_term").setup({
 	close_on_focus_loss = true,
 	-- `close_on_focus` is accepted as an alias for the same option.
 
+	-- When another plugin (fzf-lua, telescope, oil, ...) opens a file in the
+	-- window that hosts one of these terminals, show the file in the principal
+	-- window and put the terminal buffer back into its window. With no
+	-- principal window left (a tab holding only the terminal) the file lands in
+	-- that window, as it does with the option off.
+	protect_terminal_windows = true,
+
 	-- Right-side vertical terminal: share of the total `columns`.
 	width_ratio = 0.30,
 
@@ -187,6 +194,7 @@ terminal.close_on_focus_loss()             -- the current value
 terminal.set_close_on_focus_loss(true)     -- set it; no argument toggles
 
 terminal.vertical.window()                 -- hosting window id, or nil
+terminal.vertical.tracked_buffer()         -- terminal buffer, even when hidden
 terminal.horizontal.is_open()              -- boolean
 terminal.floating.is_open()                -- boolean
 ```
@@ -211,6 +219,15 @@ vim.keymap.set({ "n", "t" }, '<C-w>"', require("toggable_term").toggle_bottom_te
   `'bufhidden' = "hide"`, so closing the window keeps the shell, its job id and
   its scrollback alive. `jobwait([job], 0)` still returns `-1` while the terminal
   is hidden.
+- **A file opened by another plugin never replaces a terminal window**
+  (`protect_terminal_windows`, on by default). Pickers load their selection into
+  the window that was current, which may be one of ours, so the buffer is moved to
+  the *principal* window — the last usable non-terminal window entered, then the
+  alternate window, then any split of the current tab — and the terminal buffer is
+  put back into its own window, so the shell session stays where it was. Focus
+  follows the file. When the tab holds nothing but the terminal there is no
+  principal window, and the file lands in the terminal window exactly as it does
+  with the option off: the guard never cancels the edit.
 - **Sizes.** The `*_ratio` options size a terminal as a share of the editor.
   `vertical_size`, `horizontal_size`, `float_width` and `float_height` override
   them with a fixed size, given either as a number of cells (`vertical_size = 30`)

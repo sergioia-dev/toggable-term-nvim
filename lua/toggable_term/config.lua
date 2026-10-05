@@ -30,9 +30,17 @@ local M = {}
 --- terminal the first time it is created, e.g. `horizontal_init = "opencode"`
 --- starts opencode in the bottom terminal. The cached buffer keeps the session, so
 --- the command is not run again on later toggles.
+---
+--- `protect_terminal_windows` keeps a buffer that another plugin loads into a
+--- terminal window (a picker's selection, a file manager's `<CR>`) in the
+--- principal window instead — see `core.setup_buffer_guard()`.
 M.defaults = {
 	-- Close a terminal as soon as it loses focus.
 	close_on_focus_loss = true,
+	-- Move a buffer that a plugin (fzf-lua, telescope, oil, ...) opens in a
+	-- terminal window to the principal window, keeping the terminal in its
+	-- window.
+	protect_terminal_windows = true,
 	-- Right-side vertical terminal: share of the total `columns`.
 	width_ratio = 0.30,
 	-- Right-side vertical terminal: a fixed width in columns (`30`) or a share of
@@ -71,6 +79,7 @@ M.defaults = {
 --- the `*_init` commands would look like unknown options.
 M.known = {
 	close_on_focus_loss = true,
+	protect_terminal_windows = true,
 	width_ratio = true,
 	vertical_size = true,
 	height_ratio = true,

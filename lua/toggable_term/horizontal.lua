@@ -18,6 +18,17 @@ function M.tracked_window()
 	return term_win
 end
 
+--- The cached terminal buffer, even when the window no longer shows it because
+--- a plugin replaced it. Terminal buffers keep `'bufhidden' = "hide"`, so the
+--- session is intact when the buffer guard puts it back into the window.
+--- @return integer|nil
+function M.tracked_buffer()
+	if type(term_buf) == "number" and vim.api.nvim_buf_is_valid(term_buf) then
+		return term_buf
+	end
+	return nil
+end
+
 --- Configured height in lines: `horizontal_size` when set, `height_ratio`
 --- otherwise. Currently rendered sizes are not remembered.
 --- @return integer

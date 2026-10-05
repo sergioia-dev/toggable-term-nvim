@@ -25,6 +25,7 @@ core.register(vertical)
 core.register(horizontal)
 core.register(floating)
 core.setup_autocmd()
+core.setup_buffer_guard()
 
 --- Merge options (see `toggable_term.config` for the full list, including the
 --- `close_on_focus_loss` switch).
