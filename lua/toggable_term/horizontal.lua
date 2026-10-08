@@ -92,6 +92,24 @@ function M.close()
 	end
 end
 
+--- Create the terminal without a window, so `horizontal_init` is already running
+--- when the terminal is first toggled (`horizontal_background_init`).
+--- @return boolean started
+function M.preload()
+	if not core.background_init_enabled("horizontal_background_init") then
+		return false
+	end
+	if M.tracked_buffer() then
+		return false
+	end
+	local buf = core.create_background_terminal(config.options.horizontal_init, vim.o.columns, height())
+	if not buf then
+		return false
+	end
+	term_buf = buf
+	return true
+end
+
 --- Open the terminal at the bottom, reusing the cached buffer when possible.
 --- Leaves the cursor in the new terminal window, in insert mode.
 function M.open()
@@ -107,6 +125,9 @@ function M.open()
 	end
 
 	term_win = vim.api.nvim_get_current_win()
+	-- A terminal created by `M.preload()` kept the size its pseudo-terminal had
+	-- while hidden; Neovim does not resize it when the window shows it.
+	core.resize_terminal(term_buf, term_win)
 	vim.cmd("startinsert")
 end
 

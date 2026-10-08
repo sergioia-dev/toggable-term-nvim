@@ -21,18 +21,79 @@ local horizontal = require("toggable_term.horizontal")
 local vertical = require("toggable_term.vertical")
 local floating = require("toggable_term.floating")
 
+--- The terminals a `*_background_init` option can start, by the name used in
+--- the options (`float` rather than `floating`).
+local kinds = {
+	vertical = vertical,
+	horizontal = horizontal,
+	float = floating,
+}
+
+--- Option that switches the background start of each kind on.
+local background_init_option = {
+	vertical = "vertical_background_init",
+	horizontal = "horizontal_background_init",
+	float = "float_background_init",
+}
+
 core.register(vertical)
 core.register(horizontal)
 core.register(floating)
 core.setup_autocmd()
 core.setup_buffer_guard()
 
+--- True when at least one `*_background_init` option asks for a background
+--- terminal. A value that is neither boolean counts too, so `M.setup()` still
+--- hands it to the kind, which warns about it.
+--- @return boolean
+local function background_init_requested()
+	for _, option in pairs(background_init_option) do
+		local value = config.options[option]
+		if value ~= nil and value ~= false then
+			return true
+		end
+	end
+	return false
+end
+
+--- True while a background preload is waiting for the event loop.
+local preload_scheduled = false
+
+--- Start the terminals whose `*_background_init` option is on, without a window.
+---
+--- Every kind is asked: it skips itself when its option is off or when it
+--- already has a buffer, so preloading twice never starts a second session.
+local function preload_background_terminals()
+	for _, kind in pairs(kinds) do
+		kind.preload()
+	end
+end
+
+--- Preload the background terminals once the current `setup()` is over.
+---
+--- Deferred with `vim.schedule()` so `setup()` never spawns a shell while the
+--- options are still being merged, and guarded so repeated `setup()` calls (a
+--- reload of the plugin spec, for instance) do not preload in parallel. A later
+--- `setup()` that switches another kind on still starts that one.
+local function schedule_preload()
+	if preload_scheduled or not background_init_requested() then
+		return
+	end
+	preload_scheduled = true
+	vim.schedule(function()
+		preload_scheduled = false
+		preload_background_terminals()
+	end)
+end
+
 --- Merge options (see `toggable_term.config` for the full list, including the
 --- `close_on_focus_loss` switch).
 --- @param opts table|nil
 --- @return table options
 function M.setup(opts)
-	return config.setup(opts)
+	local options = config.setup(opts)
+	schedule_preload()
+	return options
 end
 
 --- The active options table.

@@ -9,6 +9,7 @@
 --- 	float_width = 50,
 --- 	float_height = 50,
 --- 	horizontal_init = "opencode",
+--- 	horizontal_background_init = true,
 --- 	before_open = function()
 --- 		require("plugins.sidebars").close_other_sidebars()
 --- 	end,
@@ -30,6 +31,14 @@ local M = {}
 --- terminal the first time it is created, e.g. `horizontal_init = "opencode"`
 --- starts opencode in the bottom terminal. The cached buffer keeps the session, so
 --- the command is not run again on later toggles.
+---
+--- `vertical_background_init`/`horizontal_background_init`/`float_background_init`
+--- create that terminal — and run its `*_init` command — right when `setup()`
+--- runs, in a hidden buffer with no window and no focus change, so the first
+--- toggle already shows a running program. A kind that has a buffer already is
+--- skipped, so a later `setup()` never starts a second session, and `false` only
+--- stops this early start: it never kills a terminal that is already running.
+--- A value that is neither `true` nor `false` warns once and counts as off.
 ---
 --- `protect_terminal_windows` keeps a buffer that another plugin loads into a
 --- terminal window (a picker's selection, a file manager's `<CR>`) in the
@@ -53,8 +62,14 @@ M.defaults = {
 	horizontal_size = nil,
 	-- Command run once in the vertical terminal, when its buffer is created.
 	vertical_init = nil,
+	-- Start the vertical terminal — and its init command — hidden as soon as
+	-- `setup()` runs, so the first toggle already shows the running program.
+	vertical_background_init = false,
 	-- Command run once in the horizontal terminal, when its buffer is created.
 	horizontal_init = nil,
+	-- Start the horizontal terminal — and its init command — hidden as soon as
+	-- `setup()` runs, so the first toggle already shows the running program.
+	horizontal_background_init = false,
 	-- Floating terminal: share of the total `columns`.
 	float_width_ratio = 0.80,
 	-- Floating terminal: share of the total `lines`.
@@ -69,6 +84,9 @@ M.defaults = {
 	float_border = "rounded",
 	-- Command run once in the floating terminal, when its buffer is created.
 	float_init = nil,
+	-- Start the floating terminal — and its init command — hidden as soon as
+	-- `setup()` runs, so the first toggle already shows the running program.
+	float_background_init = false,
 	-- Called right before a terminal opens; use it to close competing sidebars
 	-- (DBUI, mini.files, ...) so only one sidebar is ever visible.
 	before_open = nil,
@@ -85,13 +103,16 @@ M.known = {
 	height_ratio = true,
 	horizontal_size = true,
 	vertical_init = true,
+	vertical_background_init = true,
 	horizontal_init = true,
+	horizontal_background_init = true,
 	float_width_ratio = true,
 	float_height_ratio = true,
 	float_width = true,
 	float_height = true,
 	float_border = true,
 	float_init = true,
+	float_background_init = true,
 	before_open = true,
 }
 

@@ -18,6 +18,9 @@ local suppressed = false
 --- Register a terminal module. A module provided here has to expose
 --- `open/close/close_window/is_open/window/owns_window/tracked_window/tracked_buffer`.
 ---
+--- `preload()` is optional: it creates the terminal — and runs its `*_init`
+--- command — without a window, for the `*_background_init` options.
+---
 --- `tracked_window()` and `tracked_buffer()` have to be pure getters: the buffer
 --- guard calls them for a window that no longer hosts a terminal, while
 --- `window()`/`owns_window()` clear a stale tracked window as a side effect.
@@ -34,6 +37,16 @@ function M.win_is_terminal(win)
 		return false
 	end
 	return vim.bo[vim.api.nvim_win_get_buf(win)].buftype == "terminal"
+end
+
+--- True when the buffer exists and is a terminal buffer.
+--- @param buf integer|nil
+--- @return boolean
+function M.buf_is_terminal(buf)
+	if not buf or not vim.api.nvim_buf_is_valid(buf) then
+		return false
+	end
+	return vim.bo[buf].buftype == "terminal"
 end
 
 --- True when the window exists and is floating rather than a split.
@@ -213,6 +226,102 @@ function M.run_init_command(command, job)
 		return false
 	end
 	return true
+end
+
+--- Size the pseudo-terminal of `buf` in cells.
+--- @param buf integer|nil
+--- @param cols integer
+--- @param rows integer
+--- @return boolean resized
+function M.resize_terminal_to(buf, cols, rows)
+	if not M.buf_is_terminal(buf) then
+		return false
+	end
+	local job = vim.b[buf].terminal_job_id
+	if type(job) ~= "number" or job <= 0 then
+		return false
+	end
+	local width = math.max(1, math.floor(tonumber(cols) or 1))
+	local height = math.max(1, math.floor(tonumber(rows) or 1))
+	return pcall(vim.fn.jobresize, job, width, height)
+end
+
+--- Size the pseudo-terminal of `buf` like the window that hosts it.
+---
+--- A terminal created without a window (see `M.create_background_terminal()`)
+--- keeps the size its pty had back then, even once a window shows it, so the
+--- size has to be applied again on the first open. A no-op for a terminal that
+--- was created in its window the usual way.
+--- @param buf integer|nil
+--- @param win integer|nil
+--- @return boolean resized
+function M.resize_terminal(buf, win)
+	if not win or not vim.api.nvim_win_is_valid(win) then
+		return false
+	end
+	return M.resize_terminal_to(buf, vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win))
+end
+
+--- True when a `*_background_init` option is switched on.
+---
+--- Only a real boolean enables it: a stray value (`"yes"`, `1`) warns once
+--- and counts as off, so a typo can never start a terminal behind the user's
+--- back.
+--- @param name string
+--- @return boolean
+function M.background_init_enabled(name)
+	local value = config.options[name]
+	if value == nil or value == false then
+		return false
+	end
+	if value ~= true then
+		vim.notify_once(
+			"toggable-term-nvim: " .. name .. " expects true or false, got " .. vim.inspect(value),
+			vim.log.levels.WARN
+		)
+		return false
+	end
+	return true
+end
+
+--- Create the terminal of a kind without any window, so its `*_init` command is
+--- already running when the terminal is first toggled (`*_background_init`).
+---
+--- `cols`/`rows` size the pseudo-terminal right away: without a window the pty
+--- would inherit the size of the internal window `nvim_buf_call()` uses, and
+--- Neovim does not resize a terminal that was created while hidden when it is
+--- shown later. The init command is typed after that resize, so a program that
+--- reads the terminal size at startup sees the geometry it will be shown in.
+--- @param command string|nil
+--- @param cols integer
+--- @param rows integer
+--- @return integer|nil buf
+function M.create_background_terminal(command, cols, rows)
+	local buf = vim.api.nvim_create_buf(false, true)
+	local ok, err = true, nil
+	M.without_focus_close(function()
+		ok, err = pcall(vim.api.nvim_buf_call, buf, function()
+			vim.fn.termopen(vim.o.shell)
+		end)
+	end)
+
+	local job = vim.b[buf].terminal_job_id
+	if not ok or not M.buf_is_terminal(buf) or type(job) ~= "number" or job <= 0 then
+		vim.notify_once(
+			"toggable-term-nvim: could not start a terminal in the background: " .. tostring(err),
+			vim.log.levels.WARN
+		)
+		pcall(vim.api.nvim_buf_delete, buf, { force = true })
+		return nil
+	end
+
+	-- `:terminal`-style buffers are listed; a background terminal should only
+	-- appear in `:ls` once it has been opened.
+	vim.bo[buf].buflisted = false
+	vim.bo[buf].bufhidden = "hide"
+	M.resize_terminal_to(buf, cols, rows)
+	M.run_init_command(command, job)
+	return buf
 end
 
 --- Close `left` when the focus has moved away from it and it still hosts one of

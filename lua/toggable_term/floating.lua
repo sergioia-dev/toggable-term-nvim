@@ -101,6 +101,25 @@ function M.close()
 	end
 end
 
+--- Create the terminal without a window, so `float_init` is already running when
+--- the terminal is first toggled (`float_background_init`).
+--- @return boolean started
+function M.preload()
+	if not core.background_init_enabled("float_background_init") then
+		return false
+	end
+	if M.tracked_buffer() then
+		return false
+	end
+	local geo = geometry()
+	local buf = core.create_background_terminal(config.options.float_init, geo.width, geo.height)
+	if not buf then
+		return false
+	end
+	term_buf = buf
+	return true
+end
+
 --- Open the terminal in a centred floating window, reusing the cached buffer when
 --- possible. Leaves the cursor in the floating window, in insert mode.
 function M.open()
@@ -119,6 +138,10 @@ function M.open()
 		term_buf = vim.api.nvim_get_current_buf()
 		-- First creation of this terminal: start its init command, if one is set.
 		core.run_init_command(config.options.float_init, vim.b.terminal_job_id)
+	else
+		-- A terminal created by `M.preload()` kept the size its pseudo-terminal had
+		-- while hidden; Neovim does not resize it when the window shows it.
+		core.resize_terminal(term_buf, term_win)
 	end
 
 	vim.cmd("startinsert")

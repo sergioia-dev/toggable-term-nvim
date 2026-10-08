@@ -154,6 +154,14 @@ require("toggable_term").setup({
 	horizontal_init = nil,
 	float_init = nil,
 
+	-- Create a terminal — and run its init command — as soon as `setup()` runs,
+	-- in a hidden buffer with no window and no focus change, so the first toggle
+	-- already shows a running program. A kind that is already running is left
+	-- alone, and `false` never kills a session that is already open.
+	vertical_background_init = false,
+	horizontal_background_init = false,
+	float_background_init = false,
+
 	before_open = nil 
 ```
 
@@ -195,6 +203,7 @@ terminal.set_close_on_focus_loss(true)     -- set it; no argument toggles
 
 terminal.vertical.window()                 -- hosting window id, or nil
 terminal.vertical.tracked_buffer()         -- terminal buffer, even when hidden
+terminal.vertical.preload()                -- create it hidden (the `*_background_init` options)
 terminal.horizontal.is_open()              -- boolean
 terminal.floating.is_open()                -- boolean
 ```
@@ -242,6 +251,19 @@ vim.keymap.set({ "n", "t" }, '<C-w>"', require("toggable_term").toggle_bottom_te
   buffer (`:bd!`) to get a fresh terminal with a new init command.
   Pass `false` to turn an init command off again: `setup({ x = nil })` cannot
   clear an option, because Lua's `pairs()` skips nil values.
+- **`vertical_background_init`/`horizontal_background_init`/`float_background_init`
+  start that terminal early**, when `setup()` runs, instead of on the first toggle:
+  the buffer is created without a window, in the background, and the init command
+  is typed into it right away, so the first `:TermVertical` shows `pi` already
+  running instead of a fresh shell. Nothing is opened, no window is created and
+  focus never moves. The pseudo-terminal is sized like the terminal will be
+  (the configured width × the editor height, the editor width × the configured
+  height, or the float geometry) *before* the init command is typed, so a program
+  that reads the size at startup sees the right one, and the size is applied again
+  the first time the terminal is shown, because Neovim does not resize a terminal
+  that was created while hidden. A kind that already has a buffer is skipped, so a
+  second `setup()` never starts a second session, and `false` only stops the early
+  start: it never kills a terminal that is already running.
 - **The floating terminal** is a `relative = "editor"` float, centred and sized by
   `float_width` × `float_height` (or, when those are unset, `float_width_ratio` ×
   `float_height_ratio`) in editor cells, with `float_border`.
