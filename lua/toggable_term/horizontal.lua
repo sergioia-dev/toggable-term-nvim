@@ -125,6 +125,7 @@ function M.open()
 	end
 
 	term_win = vim.api.nvim_get_current_win()
+	core.apply_line_number_options(term_win, "horizontal")
 	-- A terminal created by `M.preload()` kept the size its pseudo-terminal had
 	-- while hidden; Neovim does not resize it when the window shows it.
 	core.resize_terminal(term_buf, term_win)

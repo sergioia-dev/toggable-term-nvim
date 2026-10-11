@@ -10,6 +10,7 @@
 --- 	float_height = 50,
 --- 	horizontal_init = "opencode",
 --- 	horizontal_background_init = true,
+--- 	horizontal_line_number = true,
 --- 	before_open = function()
 --- 		require("plugins.sidebars").close_other_sidebars()
 --- 	end,
@@ -43,6 +44,11 @@ local M = {}
 --- `protect_terminal_windows` keeps a buffer that another plugin loads into a
 --- terminal window (a picker's selection, a file manager's `<CR>`) in the
 --- principal window instead — see `core.setup_buffer_guard()`.
+---
+--- `vertical_line_number`/`vertical_relative_line_number` — and the `horizontal_*`
+--- and `float_*` pairs — are explicit window options applied on every open: `true`
+--- turns `'number'`/`'relativenumber'` on in that terminal's window, `false` (the
+--- default) turns them off, and `false` overrides the global setting.
 M.defaults = {
 	-- Close a terminal as soon as it loses focus.
 	close_on_focus_loss = true,
@@ -65,11 +71,17 @@ M.defaults = {
 	-- Start the vertical terminal — and its init command — hidden as soon as
 	-- `setup()` runs, so the first toggle already shows the running program.
 	vertical_background_init = false,
+	-- Show `'number'`/`'relativenumber'` in the vertical terminal.
+	vertical_line_number = false,
+	vertical_relative_line_number = false,
 	-- Command run once in the horizontal terminal, when its buffer is created.
 	horizontal_init = nil,
 	-- Start the horizontal terminal — and its init command — hidden as soon as
 	-- `setup()` runs, so the first toggle already shows the running program.
 	horizontal_background_init = false,
+	-- Show `'number'`/`'relativenumber'` in the horizontal terminal.
+	horizontal_line_number = false,
+	horizontal_relative_line_number = false,
 	-- Floating terminal: share of the total `columns`.
 	float_width_ratio = 0.80,
 	-- Floating terminal: share of the total `lines`.
@@ -87,6 +99,9 @@ M.defaults = {
 	-- Start the floating terminal — and its init command — hidden as soon as
 	-- `setup()` runs, so the first toggle already shows the running program.
 	float_background_init = false,
+	-- Show `'number'`/`'relativenumber'` in the floating terminal.
+	float_line_number = false,
+	float_relative_line_number = false,
 	-- Called right before a terminal opens; use it to close competing sidebars
 	-- (DBUI, mini.files, ...) so only one sidebar is ever visible.
 	before_open = nil,
@@ -113,6 +128,12 @@ M.known = {
 	float_border = true,
 	float_init = true,
 	float_background_init = true,
+	vertical_line_number = true,
+	vertical_relative_line_number = true,
+	horizontal_line_number = true,
+	horizontal_relative_line_number = true,
+	float_line_number = true,
+	float_relative_line_number = true,
 	before_open = true,
 }
 

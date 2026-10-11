@@ -132,17 +132,22 @@ function M.open()
 	end
 
 	term_win = vim.api.nvim_open_win(buf, true, geometry())
-
+	-- `:terminal` resets the window options of a `style = "minimal"` float, so the
+	-- line-number options are applied once the terminal exists, and a preloaded
+	-- terminal also needs the explicit resize below.
 	if is_new then
 		vim.cmd("terminal")
 		term_buf = vim.api.nvim_get_current_buf()
 		-- First creation of this terminal: start its init command, if one is set.
 		core.run_init_command(config.options.float_init, vim.b.terminal_job_id)
-	else
-		-- A terminal created by `M.preload()` kept the size its pseudo-terminal had
-		-- while hidden; Neovim does not resize it when the window shows it.
-		core.resize_terminal(term_buf, term_win)
 	end
+
+	core.apply_line_number_options(term_win, "float")
+	-- The pty is fitted to the text area last: a just created terminal was sized
+	-- before the options were known, and a terminal created by `M.preload()` kept
+	-- the size its pseudo-terminal had while hidden, which Neovim does not refresh
+	-- when the window shows it.
+	core.resize_terminal(term_buf, term_win)
 
 	vim.cmd("startinsert")
 end

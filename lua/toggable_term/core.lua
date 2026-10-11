@@ -246,30 +246,78 @@ function M.resize_terminal_to(buf, cols, rows)
 	return pcall(vim.fn.jobresize, job, width, height)
 end
 
---- Size the pseudo-terminal of `buf` like the window that hosts it.
+--- The part of `win` that is left for its buffer, in cells.
 ---
---- A terminal created without a window (see `M.create_background_terminal()`)
---- keeps the size its pty had back then, even once a window shows it, so the
---- size has to be applied again on the first open. A no-op for a terminal that
---- was created in its window the usual way.
+--- Neovim clamps a displayed terminal to the window's text area, so that is the
+--- area the pseudo-terminal has to be sized to: `textoff` columns are kept for
+--- `'number'` and friends, `winbar` lines for the winbar. Both are clamped to at
+--- least 1, because a pty of 0 cells is not a size.
+--- @param win integer|nil
+--- @return table|nil area `{ cols = integer, rows = integer }`
+function M.win_text_area(win)
+	if not win or not vim.api.nvim_win_is_valid(win) then
+		return nil
+	end
+	local info = vim.fn.getwininfo(win)[1]
+	local cols = vim.api.nvim_win_get_width(win) - (info and info.textoff or 0)
+	local rows = vim.api.nvim_win_get_height(win) - (info and info.winbar or 0)
+	return { cols = math.max(1, cols), rows = math.max(1, rows) }
+end
+
+--- Size the pseudo-terminal of `buf` like the text area of the window hosting it.
+---
+--- The pty gets the cells the window leaves for its buffer, not the whole window,
+--- so the number column (see the `*_line_number` options) never hides terminal
+--- output and Neovim never has to clamp the display afterwards. A terminal created
+--- without a window (see `M.create_background_terminal()`) keeps the size its pty
+--- had back then, even once a window shows it, so the size has to be applied again
+--- on the first open. A no-op for a terminal that was created in its window the
+--- usual way.
+---
+--- Showing a terminal that Neovim did not create in this window schedules a
+--- resize of its pty to the window size Neovim saw before the `*_line_number`
+--- options were applied, and that scheduled resize runs after this function
+--- returns. The `:redraw` below lets it run first, so the explicit resize is the
+--- last word on the size and `textoff` really is taken off the pty.
 --- @param buf integer|nil
 --- @param win integer|nil
 --- @return boolean resized
 function M.resize_terminal(buf, win)
+	local area = M.win_text_area(win)
+	if not area then
+		return false
+	end
+	vim.cmd("redraw")
+	return M.resize_terminal_to(buf, area.cols, area.rows)
+end
+
+--- Apply the `*_line_number`/`*_relative_line_number` options of `kind` to `win`.
+---
+--- The values are explicit: `true` turns the option on in that window, `false`
+--- (the default) turns it off, so the terminal never inherits the global
+--- `'number'`/`'relativenumber'`. Applied on every open, so a recreated window —
+--- including the first open of a preloaded terminal — uses the values of the
+--- latest `setup()`.
+--- @param win integer|nil
+--- @param kind string
+--- @return boolean applied
+function M.apply_line_number_options(win, kind)
 	if not win or not vim.api.nvim_win_is_valid(win) then
 		return false
 	end
-	return M.resize_terminal_to(buf, vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win))
+	vim.wo[win].number = M.boolean_option(kind .. "_line_number")
+	vim.wo[win].relativenumber = M.boolean_option(kind .. "_relative_line_number")
+	return true
 end
 
---- True when a `*_background_init` option is switched on.
+--- Read a strict boolean option.
 ---
---- Only a real boolean enables it: a stray value (`"yes"`, `1`) warns once
---- and counts as off, so a typo can never start a terminal behind the user's
---- back.
+--- Only a real boolean counts: `true` and `false` keep their meaning, while any
+--- other value (`"yes"`, `1`) warns once and counts as `false`, so a typo can
+--- never switch something on behind the user's back.
 --- @param name string
 --- @return boolean
-function M.background_init_enabled(name)
+function M.boolean_option(name)
 	local value = config.options[name]
 	if value == nil or value == false then
 		return false
@@ -282,6 +330,16 @@ function M.background_init_enabled(name)
 		return false
 	end
 	return true
+end
+
+--- True when a `*_background_init` option is switched on.
+---
+--- The strict boolean reading is shared with the `*_line_number` options, so
+--- `background_init_enabled(name)` and `boolean_option(name)` behave the same.
+--- @param name string
+--- @return boolean
+function M.background_init_enabled(name)
+	return M.boolean_option(name)
 end
 
 --- Create the terminal of a kind without any window, so its `*_init` command is

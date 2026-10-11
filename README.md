@@ -162,6 +162,18 @@ require("toggable_term").setup({
 	horizontal_background_init = false,
 	float_background_init = false,
 
+	-- Show `'number'`/`'relativenumber'` in a terminal's window. Both are
+	-- explicit: `true` turns one on there, `false` (the default) turns it off,
+	-- and `false` overrides the global `'number'`/`'relativenumber'`. Applied
+	-- every time the window is opened, so the first open of a
+	-- `*_background_init` terminal gets them too.
+	vertical_line_number = false,
+	vertical_relative_line_number = false,
+	horizontal_line_number = false,
+	horizontal_relative_line_number = false,
+	float_line_number = false,
+	float_relative_line_number = false,
+
 	before_open = nil 
 ```
 
@@ -264,6 +276,16 @@ vim.keymap.set({ "n", "t" }, '<C-w>"', require("toggable_term").toggle_bottom_te
   that was created while hidden. A kind that already has a buffer is skipped, so a
   second `setup()` never starts a second session, and `false` only stops the early
   start: it never kills a terminal that is already running.
+- **Line numbers are per terminal window and explicit.** `vertical_line_number`,
+  `vertical_relative_line_number` and their `horizontal_*`/`float_*` pairs set
+  `'number'`/`'relativenumber'` in that terminal's window every time it is opened
+  (including the first open of a preloaded terminal). `true` turns one on, `false`
+  — the default — turns it off, so a terminal never inherits the global
+  `'number'`/`'relativenumber'`. The pseudo-terminal is sized to the window's
+  text area, so the number column never hides terminal output. They are window
+  options, so in the one case where `protect_terminal_windows` has no principal
+  window to move a picker's file to, that file is shown in the terminal window and
+  keeps these settings.
 - **The floating terminal** is a `relative = "editor"` float, centred and sized by
   `float_width` × `float_height` (or, when those are unset, `float_width_ratio` ×
   `float_height_ratio`) in editor cells, with `float_border`.
