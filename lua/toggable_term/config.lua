@@ -30,8 +30,9 @@ local M = {}
 ---
 --- `vertical_init`/`horizontal_init`/`float_init` are commands typed into the
 --- terminal the first time it is created, e.g. `horizontal_init = "opencode"`
---- starts opencode in the bottom terminal. The cached buffer keeps the session, so
---- the command is not run again on later toggles.
+--- starts opencode in the bottom terminal. An explicit shell `exit` follows the
+--- command, so that terminal closes as soon as the command ends and the next
+--- toggle starts a fresh one.
 ---
 --- `vertical_background_init`/`horizontal_background_init`/`float_background_init`
 --- create that terminal — and run its `*_init` command — right when `setup()`

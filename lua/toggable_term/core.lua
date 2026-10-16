@@ -201,9 +201,80 @@ function M.close_window(win)
 	end)
 end
 
---- Type `command` into the terminal whose job is `job`, followed by a newline, so a
---- freshly created terminal can start a program (see the `*_init` options). Called
---- once per terminal buffer, right when that buffer is created.
+--- The terminal buffer that `job` runs in, or nil when there is none.
+--- @param job integer
+--- @return integer|nil
+local function buffer_of_job(job)
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.b[buf].terminal_job_id == job then
+			return buf
+		end
+	end
+	return nil
+end
+
+--- The shell text that ends the terminal `command` runs in.
+---
+--- The exit shares the command's line, so the shell reads both before a program
+--- that reads the terminal can see the `exit 0`. A command that already ends in
+--- shell syntax error — so its exit goes on a line of its own. An interactive
+--- shell refuses to `exit` while it knows about a running job, so the jobs are
+--- dropped from the shell's job table first (`disown -a`): the background
+--- command keeps running, the shell only forgets it. Should that not be
+--- possible, the `exit` alone still ends the shell or leaves the terminal open.
+--- @param command string
+--- @return string
+local function exit_suffix(command)
+	if command:find("[&|;]%s*$") then
+		return "\ndisown -a 2>/dev/null\nexit 0\n"
+	end
+
+	return ";exit 0;\n"
+end
+
+--- Close `buf` once the `*_init` command typed into it has ended.
+---
+--- The command is followed by an explicit shell `exit` (see
+--- `M.run_init_command()`), so the shell ends with it and the terminal is over.
+--- Neovim closes the window of a `:terminal` and deletes its buffer when such a
+--- job exits, but a terminal created without a window (see the `*_background_init`
+--- options) is only hidden: its job runs a shell through `termopen()`, which the
+--- default `TermClose` autocmd leaves alone. Deleting the buffer here also drops
+--- the terminal from its module, so the next toggle starts a fresh one.
+---
+--- Registered before the command is typed, so not even a command that ends right
+--- away can outrun the autocmd. The buffer is re-checked because Neovim and the
+--- user may both have closed it first: the autocmds of a deleted buffer never run.
+--- @param buf integer|nil
+--- @return boolean registered
+local function close_when_exited(buf)
+	if not M.buf_is_terminal(buf) then
+		return false
+	end
+
+	vim.api.nvim_create_autocmd("TermClose", {
+		buffer = buf,
+		once = true,
+		desc = "toggable-term-nvim: close a terminal whose init command has ended",
+		callback = function()
+			if vim.api.nvim_buf_is_valid(buf) then
+				pcall(vim.api.nvim_buf_delete, buf, { force = true })
+			end
+		end,
+	})
+
+	return true
+end
+
+--- Type `command` into the terminal whose job is `job`, followed by an explicit
+--- shell `exit`, so a freshly created terminal can start a program (see the
+--- `*_init` options). Called once per terminal buffer, right when that buffer is
+--- created.
+---
+--- The exit closes the terminal as soon as the command ends — whether it
+--- succeeded, failed or was interrupted — and the next toggle therefore starts a
+--- fresh terminal that runs the command again. The status is forced to `0`, so a
+--- terminal Neovim closes by itself is closed no matter how the command ended.
 --- @param command string|nil
 --- @param job integer|nil
 --- @return boolean sent
@@ -216,7 +287,9 @@ function M.run_init_command(command, job)
 		return false
 	end
 
-	local ok, sent = pcall(vim.fn.chansend, job, command .. "\n")
+	close_when_exited(buffer_of_job(job))
+
+	local ok, sent = pcall(vim.fn.chansend, job, command .. exit_suffix(command))
 	if not ok then
 		vim.notify("toggable-term-nvim: init command failed: " .. tostring(sent), vim.log.levels.ERROR)
 		return false

@@ -148,8 +148,9 @@ require("toggable_term").setup({
 	float_height = nil,
 
 	-- Command typed into a terminal the first time it is created, e.g. start a
-	-- program in the bottom terminal with `horizontal_init = "opencode"`. The
-	-- buffer is cached, so it is not run again on later toggles.
+	-- program in the bottom terminal with `horizontal_init = "opencode"`. An
+	-- explicit shell `exit` follows the command, so the terminal closes as soon as
+	-- the command ends and the next toggle starts a fresh one.
 	vertical_init = nil,
 	horizontal_init = nil,
 	float_init = nil,
@@ -258,9 +259,15 @@ vim.keymap.set({ "n", "t" }, '<C-w>"', require("toggable_term").toggle_bottom_te
   once and falls back to it.
 - **`vertical_init`/`horizontal_init`/`float_init` run once per terminal buffer**,
   right when it is created, so `horizontal_init = "opencode"` starts opencode in
-  the bottom terminal. Because the buffer is cached, later toggles return to the
-  running session instead of starting a second one; change the option and wipe the
-  buffer (`:bd!`) to get a fresh terminal with a new init command.
+  the bottom terminal. An explicit shell `exit` is appended to the command, so the
+  terminal closes as soon as the program ends — whether it succeeded, failed or was
+  interrupted — and the next toggle starts a fresh terminal that runs the command
+  again. The exit runs in the shell on the same command line, so a program that
+  reads from the terminal never sees it; a command that ends in a shell separator
+  (`&`, `|`, `;`) cannot carry a `;` after it, so its exit goes on a line of its
+  own. The status is forced to `0`, so the close does not depend on how the
+  program ended. A terminal with a window is closed by Neovim itself; a preloaded
+  hidden one is closed by the plugin, and the next toggle starts a fresh terminal.
   Pass `false` to turn an init command off again: `setup({ x = nil })` cannot
   clear an option, because Lua's `pairs()` skips nil values.
 - **`vertical_background_init`/`horizontal_background_init`/`float_background_init`
