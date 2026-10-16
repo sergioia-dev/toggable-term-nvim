@@ -23,7 +23,9 @@ stable APIs only (`vim.api.nvim_create_user_command`, floating windows, `WinLeav
 	"sergioia-dev/toggable-term-nvim",
 	-- `opts` is passed to require("toggable_term").setup().
 	opts = {
-		close_on_focus_loss = true,
+		vertical_close_on_focus_loss = true,
+		horizontal_close_on_focus_loss = true,
+		float_close_on_focus_loss = true,
 		vertical_size = 30,
 		horizontal_size = 30,
 		float_width = 50,
@@ -52,7 +54,7 @@ Plug 'sergioia-dev/toggable-term-nvim'
 call plug#end()
 
 lua << EOF
-require("toggable_term").setup({ close_on_focus_loss = true })
+require("toggable_term").setup()
 EOF
 ```
 
@@ -62,7 +64,7 @@ EOF
 use({
 	"sergioia-dev/toggable-term-nvim",
 	config = function()
-		require("toggable_term").setup({ close_on_focus_loss = true })
+		require("toggable_term").setup()
 	end,
 })
 ```
@@ -72,7 +74,7 @@ use({
 ```lua
 local add = MiniDeps.add
 add({ source = "sergioia-dev/toggable-term-nvim" })
-require("toggable_term").setup({ close_on_focus_loss = true })
+require("toggable_term").setup()
 ```
 
 ### No plugin manager
@@ -111,10 +113,12 @@ the packpath, so the commands exist with no `require` in your configuration.
 
 ```lua
 require("toggable_term").setup({
-	-- Close a terminal as soon as it loses focus (the buffer is cached, so the
-	-- shell survives and the next toggle restores it).
-	close_on_focus_loss = true,
-	-- `close_on_focus` is accepted as an alias for the same option.
+	-- Close each terminal kind as soon as it loses focus (the buffer is cached,
+	-- so the shell survives and the next toggle restores it). Each kind has its
+	-- own switch.
+	vertical_close_on_focus_loss = true,
+	horizontal_close_on_focus_loss = true,
+	float_close_on_focus_loss = true,
 
 	-- When another plugin (fzf-lua, telescope, oil, ...) opens a file in the
 	-- window that hosts one of these terminals, show the file in the principal
@@ -182,8 +186,8 @@ Every key is optional and only the keys you pass are changed. Pass the table to
 `opts` in a lazy.nvim spec (as above), to `config` in packer, or call
 `require("toggable_term").setup({ ... })` yourself once the plugin is loaded.
 
-`close_on_focus_loss` can also be flipped at runtime, either through the Lua API
-or with `:TermFocusClose on|off|toggle`.
+Each `*_close_on_focus_loss` switch can also be flipped at runtime, either
+through the Lua API or with `:TermFocusClose {kind} [on|off|toggle]`.
 
 ## Commands
 
@@ -192,7 +196,7 @@ or with `:TermFocusClose on|off|toggle`.
 | `:TermVertical` | Toggle the vertical (right) terminal |
 | `:TermHorizontal` | Toggle the horizontal (bottom) terminal |
 | `:TermFloat` | Toggle the floating terminal |
-| `:TermFocusClose [on\|off\|toggle]` | Turn closing on focus loss on/off |
+| `:TermFocusClose {kind} [on\|off\|toggle]` | Turn closing on focus loss on/off for a kind (`vertical`, `horizontal`, `float`) |
 
 ## Lua API
 
@@ -211,8 +215,8 @@ terminal.close_horizontal_terminal()
 terminal.close_floating_terminal()
 terminal.close_terminal()                  -- all of them
 
-terminal.close_on_focus_loss()             -- the current value
-terminal.set_close_on_focus_loss(true)     -- set it; no argument toggles
+terminal.close_on_focus_loss("vertical")          -- the current value for a kind
+terminal.set_close_on_focus_loss("float", true)    -- set it; no value toggles
 
 terminal.vertical.window()                 -- hosting window id, or nil
 terminal.vertical.tracked_buffer()         -- terminal buffer, even when hidden

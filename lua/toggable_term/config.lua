@@ -3,7 +3,9 @@
 ---
 --- ```lua
 --- require("toggable_term").setup({
---- 	close_on_focus_loss = true,
+--- 	vertical_close_on_focus_loss = true,
+--- 	horizontal_close_on_focus_loss = true,
+--- 	float_close_on_focus_loss = true,
 --- 	vertical_size = 30,
 --- 	horizontal_size = "30%",
 --- 	float_width = 50,
@@ -20,8 +22,9 @@ local M = {}
 
 --- Default options.
 ---
---- `close_on_focus_loss` is the focus-loss switch: while true a terminal closes as
---- soon as focus leaves it, but its buffer (and therefore its shell session and
+--- `vertical_close_on_focus_loss`/`horizontal_close_on_focus_loss`/
+--- `float_close_on_focus_loss` are the per-kind focus-loss switches: while true a
+--- terminal of that kind closes as soon as focus leaves it, but its buffer (and
 --- scrollback) is cached, so the next toggle restores the same shell.
 ---
 --- The `*_ratio` options size a terminal as a share of the editor; the `*_size`,
@@ -51,8 +54,11 @@ local M = {}
 --- turns `'number'`/`'relativenumber'` on in that terminal's window, `false` (the
 --- default) turns them off, and `false` overrides the global setting.
 M.defaults = {
-	-- Close a terminal as soon as it loses focus.
-	close_on_focus_loss = true,
+	-- Close each terminal kind as soon as it loses focus (its buffer is cached,
+	-- so the shell survives and the next toggle restores it).
+	vertical_close_on_focus_loss = true,
+	horizontal_close_on_focus_loss = true,
+	float_close_on_focus_loss = true,
 	-- Move a buffer that a plugin (fzf-lua, telescope, oil, ...) opens in a
 	-- terminal window to the principal window, keeping the terminal in its
 	-- window.
@@ -112,7 +118,9 @@ M.defaults = {
 --- its own: a Lua table literal drops keys whose value is nil, so `before_open` and
 --- the `*_init` commands would look like unknown options.
 M.known = {
-	close_on_focus_loss = true,
+	vertical_close_on_focus_loss = true,
+	horizontal_close_on_focus_loss = true,
+	float_close_on_focus_loss = true,
 	protect_terminal_windows = true,
 	width_ratio = true,
 	vertical_size = true,
@@ -138,11 +146,9 @@ M.known = {
 	before_open = true,
 }
 
---- Alias names accepted by `M.setup()`: `close_on_focus` is a convenience
---- spelling of `close_on_focus_loss`, `floating_width`/`floating_height` of
+--- Alias names accepted by `M.setup()`: `floating_width`/`floating_height` of
 --- `float_width`/`float_height`.
 M.aliases = {
-	close_on_focus = "close_on_focus_loss",
 	floating_width = "float_width",
 	floating_height = "float_height",
 }

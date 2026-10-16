@@ -4,7 +4,9 @@
 ---
 --- ```lua
 --- require("toggable_term").setup({
---- 	close_on_focus_loss = true,
+--- 	vertical_close_on_focus_loss = true,
+--- 	horizontal_close_on_focus_loss = true,
+--- 	float_close_on_focus_loss = true,
 --- 	before_open = function()
 --- 		require("plugins.sidebars").close_other_sidebars()
 --- 	end,
@@ -87,7 +89,7 @@ local function schedule_preload()
 end
 
 --- Merge options (see `toggable_term.config` for the full list, including the
---- `close_on_focus_loss` switch).
+--- per-kind `*_close_on_focus_loss` switches).
 --- @param opts table|nil
 --- @return table options
 function M.setup(opts)
@@ -102,23 +104,39 @@ function M.options()
 	return config.options
 end
 
---- Whether terminals currently close as soon as they lose focus.
+--- Whether terminals of `kind` currently close as soon as they lose focus.
+---
+--- `kind` is one of `"vertical"`, `"horizontal"` or `"float"`.
+--- @param kind "vertical"|"horizontal"|"float"
 --- @return boolean
-function M.close_on_focus_loss()
-	return config.options.close_on_focus_loss
+function M.close_on_focus_loss(kind)
+	if not kinds[kind] then
+		vim.notify("toggable-term-nvim: unknown terminal kind: " .. vim.inspect(kind), vim.log.levels.ERROR)
+		return false
+	end
+
+	return config.options[kind .. "_close_on_focus_loss"]
 end
 
---- Enable/disable closing on focus loss. Without an argument the current value
---- is toggled.
+--- Enable or disable closing `kind` on focus loss. Without a value the current
+--- flag is toggled.
+--- @param kind "vertical"|"horizontal"|"float"
 --- @param value boolean|nil
 --- @return boolean enabled
-function M.set_close_on_focus_loss(value)
-	if value == nil then
-		config.options.close_on_focus_loss = not config.options.close_on_focus_loss
-	else
-		config.options.close_on_focus_loss = not not value
+function M.set_close_on_focus_loss(kind, value)
+	if not kinds[kind] then
+		vim.notify("toggable-term-nvim: unknown terminal kind: " .. vim.inspect(kind), vim.log.levels.ERROR)
+		return false
 	end
-	return config.options.close_on_focus_loss
+
+	local key = kind .. "_close_on_focus_loss"
+	if value == nil then
+		config.options[key] = not config.options[key]
+	else
+		config.options[key] = not not value
+	end
+
+	return config.options[key]
 end
 
 --- Close the vertical terminal window if one is visible.

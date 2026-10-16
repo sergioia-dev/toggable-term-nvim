@@ -184,10 +184,15 @@ function M.without_focus_close(fn)
 	end
 end
 
---- True when a terminal should be closed after losing focus.
+--- True when the terminal owned by `mod` should be closed after losing focus.
+---
+--- Keyed by the owner module's `kind`, so every terminal kind has its own switch;
+--- a module without one never closes.
+--- @param mod table|nil
 --- @return boolean
-function M.close_on_focus_loss()
-	return config.options.close_on_focus_loss and not suppressed
+function M.close_on_focus_loss(mod)
+	local option = mod and mod.kind and config.options[mod.kind .. "_close_on_focus_loss"]
+	return (option and not suppressed) or false
 end
 
 --- Close a terminal window without the focus-loss autocmd reacting to it.
@@ -459,9 +464,6 @@ end
 --- our terminals, mirroring the deferred half of the focus-loss autocmd.
 --- @param left integer
 local function focus_loss_close(left)
-	if not M.close_on_focus_loss() then
-		return
-	end
 	-- The toggle path may have closed it already, or the user may have moved
 	-- back into it before this callback ran.
 	if not M.win_is_terminal(left) then
@@ -471,7 +473,7 @@ local function focus_loss_close(left)
 		return
 	end
 	local owner = M.owner_of_window(left)
-	if not owner then
+	if not M.close_on_focus_loss(owner) then
 		return
 	end
 	owner.close_window(left)
@@ -486,13 +488,9 @@ function M.setup_autocmd()
 	vim.api.nvim_create_autocmd("WinLeave", {
 		group = vim.api.nvim_create_augroup("toggable_term_focus_close", { clear = true }),
 		callback = function()
-			if not M.close_on_focus_loss() then
-				return
-			end
-
 			local left = vim.api.nvim_get_current_win()
 			local owner = M.owner_of_window(left)
-			if not owner then
+			if not owner or not M.close_on_focus_loss(owner) then
 				return
 			end
 

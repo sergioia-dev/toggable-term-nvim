@@ -4,6 +4,9 @@
 --- window — by toggling it off or by losing focus — never kills the shell.
 local M = {}
 
+--- Option prefix and `core.close_on_focus_loss()` key for this kind.
+M.kind = "vertical"
+
 local config = require("toggable_term.config")
 local core = require("toggable_term.core")
 
